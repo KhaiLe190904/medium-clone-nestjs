@@ -17,4 +17,4 @@ import { PassportModule } from '@nestjs/passport';
   providers: [AuthService, PrismaService],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

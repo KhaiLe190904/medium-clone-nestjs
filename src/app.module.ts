@@ -9,4 +9,4 @@ import { AuthModule } from '@/features/authentication/module/auth.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
