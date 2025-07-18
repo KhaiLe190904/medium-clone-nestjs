@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ProfileController } from '@/features/profile/controller/profile.controller';
 import { ProfileService } from '@/features/profile/service/profile.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from '@/features/authentication/guard/jwt.guard';
 import { OptionalJwtAuthGuard } from '@/features/authentication/guard/optional-jwt.guard';
+import { UserController } from '@/features/profile/controller/user.controller';
 
 @Module({
   imports: [
@@ -13,7 +13,7 @@ import { OptionalJwtAuthGuard } from '@/features/authentication/guard/optional-j
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  controllers: [ProfileController],
+  controllers: [UserController],
   providers: [
     ProfileService,
     PrismaService,

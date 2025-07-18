@@ -18,7 +18,7 @@ import { ProfileResponse } from '@/features/profile/dto/profile.dto';
 import { UpdateUserDto } from '@/features/profile/dto/updateUser.dto';
 
 @Controller('api')
-export class ProfileController {
+export class UserController {
   constructor(private readonly profileService: ProfileService) {}
 
   @UseGuards(JwtAuthGuard)
@@ -63,7 +63,6 @@ export class ProfileController {
     return { profile };
   }
 
-  // DELETE /api/profiles/:username/follow - Authentication required
   @UseGuards(JwtAuthGuard)
   @Delete('profiles/:username/follow')
   async unfollowUser(

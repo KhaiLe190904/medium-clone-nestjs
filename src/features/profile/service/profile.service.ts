@@ -46,7 +46,6 @@ export class ProfileService {
       throw new NotFoundException('User not found');
     }
 
-    // Check if email is being updated and if it's already taken by another user
     if (updateUserDto.email && updateUserDto.email !== user.email) {
       const existingUser = await this.prisma.user.findUnique({
         where: {
@@ -59,7 +58,6 @@ export class ProfileService {
       }
     }
 
-    // Check if username is being updated and if it's already taken by another user
     if (updateUserDto.username && updateUserDto.username !== user.username) {
       const existingUser = await this.prisma.user.findUnique({
         where: {
@@ -72,9 +70,23 @@ export class ProfileService {
       }
     }
 
-    const updateData: any = { ...updateUserDto };
+    if (updateUserDto.password && updateUserDto.confirmPassword) {
+      if (updateUserDto.password !== updateUserDto.confirmPassword) {
+        throw new BadRequestException(
+          'Password and password confirmation do not match',
+        );
+      }
+    }
 
-    // Hash password if it's being updated
+    if (updateUserDto.password && !updateUserDto.confirmPassword) {
+      throw new BadRequestException(
+        'Password confirmation is required when updating password',
+      );
+    }
+
+    const updateData: any = { ...updateUserDto };
+    delete updateData.confirmPassword;
+
     if (updateUserDto.password) {
       updateData.password = await bcrypt.hash(updateUserDto.password, 10);
     }
