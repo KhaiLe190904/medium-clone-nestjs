@@ -9,18 +9,18 @@ import { AuthService } from '@/features/authentication/service/auth.service';
 import { UserLoginDto } from '@/features/authentication/dto/userLogin.dto';
 import { UserDto } from '@/features/authentication/dto/user.dto';
 
-@Controller('api')
+@Controller('api/users')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @UsePipes(new ValidationPipe())
-  @Post('users')
+  @Post()
   async register(@Body('user') createUserDto: UserDto) {
     const user = await this.authService.register(createUserDto);
     return user;
   }
 
-  @Post('users/login')
+  @Post('login')
   async login(@Body('user') loginUserDto: UserLoginDto) {
     const user = await this.authService.validateUser(loginUserDto);
     return user;
