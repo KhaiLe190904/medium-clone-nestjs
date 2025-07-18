@@ -11,20 +11,20 @@ import {
   ValidationPipe,
   Body,
 } from '@nestjs/common';
-import { ProfileService } from '@/features/profile/service/profile.service';
+import { UserService } from '@/features/user/service/user.service';
 import { JwtAuthGuard } from '@/features/authentication/guard/jwt.guard';
 import { OptionalJwtAuthGuard } from '@/features/authentication/guard/optional-jwt.guard';
-import { ProfileResponse } from '@/features/profile/dto/profile.dto';
-import { UpdateUserDto } from '@/features/profile/dto/updateUser.dto';
+import { ProfileResponse } from '@/features/user/dto/profile.dto';
+import { UpdateUserDto } from '@/features/user/dto/updateUser.dto';
 
 @Controller('api')
 export class UserController {
-  constructor(private readonly profileService: ProfileService) {}
+  constructor(private readonly userService: UserService) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('user')
   async getCurrentUser(@Request() req) {
-    const user = await this.profileService.getCurrentUser(req.user.id);
+    const user = await this.userService.getCurrentUser(req.user.id);
     return { user };
   }
 
@@ -32,7 +32,7 @@ export class UserController {
   @UsePipes(new ValidationPipe())
   @Put('user')
   async updateUser(@Request() req, @Body('user') updateUserDto: UpdateUserDto) {
-    const user = await this.profileService.updateUser(
+    const user = await this.userService.updateUser(
       req.user.id,
       updateUserDto,
     );
@@ -46,7 +46,7 @@ export class UserController {
     @Request() req,
   ): Promise<ProfileResponse> {
     const currentUserId = req.user?.id;
-    const profile = await this.profileService.getProfile(
+    const profile = await this.userService.getProfile(
       username,
       currentUserId,
     );
@@ -59,7 +59,7 @@ export class UserController {
     @Param('username') username: string,
     @Request() req,
   ): Promise<ProfileResponse> {
-    const profile = await this.profileService.followUser(username, req.user.id);
+    const profile = await this.userService.followUser(username, req.user.id);
     return { profile };
   }
 
@@ -69,7 +69,7 @@ export class UserController {
     @Param('username') username: string,
     @Request() req,
   ): Promise<ProfileResponse> {
-    const profile = await this.profileService.unfollowUser(
+    const profile = await this.userService.unfollowUser(
       username,
       req.user.id,
     );

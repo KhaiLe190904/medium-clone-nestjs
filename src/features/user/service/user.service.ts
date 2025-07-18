@@ -4,12 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@/prisma/prisma.service';
-import { ProfileDto } from '@/features/profile/dto/profile.dto';
-import { UpdateUserDto } from '@/features/profile/dto/updateUser.dto';
+import { ProfileDto } from '@/features/user/dto/profile.dto';
+import { UpdateUserDto } from '@/features/user/dto/updateUser.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
-export class ProfileService {
+export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getCurrentUser(userId: number) {
@@ -70,18 +70,18 @@ export class ProfileService {
       }
     }
 
+    if (updateUserDto.password && !updateUserDto.confirmPassword) {
+      throw new BadRequestException(
+        'Password confirmation is required when updating password',
+      );
+    }
+
     if (updateUserDto.password && updateUserDto.confirmPassword) {
       if (updateUserDto.password !== updateUserDto.confirmPassword) {
         throw new BadRequestException(
           'Password and password confirmation do not match',
         );
       }
-    }
-
-    if (updateUserDto.password && !updateUserDto.confirmPassword) {
-      throw new BadRequestException(
-        'Password confirmation is required when updating password',
-      );
     }
 
     const updateData: any = { ...updateUserDto };
@@ -163,18 +163,24 @@ export class ProfileService {
     }
 
     if (userToFollow.id === currentUserId) {
-      throw new NotFoundException('Cannot follow yourself');
+      throw new BadRequestException('Cannot follow yourself');
     }
 
-    await this.prisma.follow.upsert({
+    const existingFollow = await this.prisma.follow.findUnique({
       where: {
         followerId_followingId: {
           followerId: currentUserId,
           followingId: userToFollow.id,
         },
       },
-      update: {},
-      create: {
+    });
+
+    if (existingFollow) {
+      throw new BadRequestException('You are already following this user');
+    }
+
+    await this.prisma.follow.create({
+      data: {
         followerId: currentUserId,
         followingId: userToFollow.id,
       },
