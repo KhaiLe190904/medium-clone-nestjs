@@ -17,4 +17,21 @@ model user {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
   token     String?
+
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
+}
+
+model Follow {
+  id          Int @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+
+  follower  user @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following user @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@map("follows")
 }
