@@ -15,11 +15,13 @@ model user {
   bio       String?  @default("")
   image     String?  @default("")
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
   token     String?
 
-  followers Follow[] @relation("UserFollowers")
-  following Follow[] @relation("UserFollowing")
+  followers Follow[]   @relation("UserFollowers")
+  following Follow[]   @relation("UserFollowing")
+  articles  Article[]
+  favorites Favorite[]
 }
 
 model Follow {
@@ -34,4 +36,33 @@ model Follow {
 
   @@unique([followerId, followingId])
   @@map("follows")
+}
+
+model Article {
+  id             Int      @id @default(autoincrement())
+  slug           String   @unique
+  title          String
+  description    String
+  body           String
+  tagList        String   @default("[]")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  favoritesCount Int      @default(0)
+
+  authorId  Int
+  author    user       @relation(fields: [authorId], references: [id])
+  favorites Favorite[]
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  articleId Int
+  createdAt DateTime @default(now())
+
+  user    user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@map("favorites")
 }
