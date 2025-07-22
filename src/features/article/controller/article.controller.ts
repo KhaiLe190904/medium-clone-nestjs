@@ -10,6 +10,7 @@ import {
   Body,
   Put,
   Delete,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ListArticlesDto } from '../dto/list-articles.dto';
 import { OptionalJwtAuthGuard } from '@/features/authentication/guard/optional-jwt.guard';
@@ -42,20 +43,33 @@ export class ArticleController {
     @Request() req: any,
   ) {
     const currentUserId = req.user?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User authentication required');
+    }
     return this.articleService.create(createArticleDto, currentUserId);
   }
 
   @Put(':slug')
   @UseGuards(JwtAuthGuard)
-  async update(@Param('slug') slug: string, @Body('article') updateArticleDto: UpdateArticleDto, @Request() req: any){
-    const currentUserId = req.user.id;
+  async update(
+    @Param('slug') slug: string,
+    @Body('article') updateArticleDto: UpdateArticleDto,
+    @Request() req: any,
+  ) {
+    const currentUserId = req.user?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User authentication required');
+    }
     return this.articleService.update(slug, updateArticleDto, currentUserId);
   }
 
   @Delete(':slug')
   @UseGuards(JwtAuthGuard)
-  async delete(@Param('slug') slug: string, @Request() req: any){
-    const currentUserId = req.user.id;
+  async delete(@Param('slug') slug: string, @Request() req: any) {
+    const currentUserId = req.user?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User authentication required');
+    }
     return this.articleService.delete(slug, currentUserId);
   }
 }

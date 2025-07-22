@@ -17,6 +17,63 @@ import { UpdateArticleDto } from '@/features/article/dto/update-article.dto';
 export class ArticleService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private parseTagList(tagListJson: string): string[] {
+    try {
+      return JSON.parse(tagListJson);
+    } catch {
+      return [];
+    }
+  }
+
+  private async checkFollowing(
+    currentUserId: number | undefined,
+    targetUserId: number,
+  ): Promise<boolean> {
+    if (!currentUserId || currentUserId === targetUserId) {
+      return false;
+    }
+
+    const followRelation = await this.prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      },
+    });
+    return !!followRelation;
+  }
+
+  private async getFollowingMap(
+    currentUserId: number | undefined,
+    authorIds: number[],
+  ): Promise<Map<number, boolean>> {
+    const followingMap = new Map<number, boolean>();
+
+    if (!currentUserId || authorIds.length === 0) {
+      authorIds.forEach((id) => followingMap.set(id, false));
+      return followingMap;
+    }
+
+    const followRelations = await this.prisma.follow.findMany({
+      where: {
+        followerId: currentUserId,
+        followingId: { in: authorIds },
+      },
+      select: { followingId: true },
+    });
+
+    authorIds.forEach((id) => {
+      followingMap.set(id, id === currentUserId ? false : false);
+    });
+
+    followRelations.forEach((relation) => {
+      followingMap.set(relation.followingId, true);
+    });
+
+    return followingMap;
+  }
+
   async create(createArticleDto: CreateArticleDto, currentUserId: number) {
     const { title, description, body, tagList } = createArticleDto;
 
@@ -54,12 +111,7 @@ export class ArticleService {
       },
     });
 
-    let parsedTagList: string[] = [];
-    try {
-      parsedTagList = JSON.parse(newArticle.tagList);
-    } catch {
-      parsedTagList = [];
-    }
+    const parsedTagList = this.parseTagList(newArticle.tagList);
 
     return {
       article: {
@@ -135,8 +187,35 @@ export class ArticleService {
         title: title || article.title,
         description: description || article.description,
         body: body || article.body,
-      }
+      },
+      include: {
+        author: {
+          select: {
+            username: true,
+            bio: true,
+            image: true,
+            id: true,
+          },
+        },
+        favorites: currentUserId
+          ? {
+              where: { userId: currentUserId },
+              select: { id: true },
+            }
+          : false,
+        _count: {
+          select: { favorites: true },
+        },
+      },
     });
+
+    const tagList = this.parseTagList(updatedArticle.tagList);
+    const following = await this.checkFollowing(
+      currentUserId,
+      updatedArticle.author.id,
+    );
+    const favorited =
+      updatedArticle.favorites && updatedArticle.favorites.length > 0;
 
     return {
       article: {
@@ -144,13 +223,24 @@ export class ArticleService {
         title: updatedArticle.title,
         description: updatedArticle.description,
         body: updatedArticle.body,
+        tagList,
+        createdAt: updatedArticle.createdAt.toISOString(),
+        updatedAt: updatedArticle.updatedAt.toISOString(),
+        favorited,
+        favoritesCount: updatedArticle._count.favorites,
+        author: {
+          username: updatedArticle.author.username,
+          bio: updatedArticle.author.bio || '',
+          image: updatedArticle.author.image || '',
+          following,
+        },
       },
     };
   }
 
-  async delete(slug: string, currentUserId: number){
+  async delete(slug: string, currentUserId: number) {
     const article = await this.prisma.article.findUnique({
-      where: {slug},
+      where: { slug },
       include: {
         author: {
           select: {
@@ -160,14 +250,14 @@ export class ArticleService {
       },
     });
 
-    if(!article){
+    if (!article) {
       throw new NotFoundException('Article not found');
     }
 
-    if(article.author.id !== currentUserId){
+    if (article.author.id !== currentUserId) {
       throw new ForbiddenException('You are not the author of this article');
     }
-    
+
     await this.prisma.article.delete({
       where: { slug },
     });
@@ -205,25 +295,11 @@ export class ArticleService {
       throw new NotFoundException('Article not found');
     }
 
-    let tagList: string[] = [];
-    try {
-      tagList = JSON.parse(article.tagList);
-    } catch {
-      tagList = [];
-    }
-
-    let following = false;
-    if (currentUserId && currentUserId !== article.author.id) {
-      const followRelation = await this.prisma.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: currentUserId,
-            followingId: article.author.id,
-          },
-        },
-      });
-      following = !!followRelation;
-    }
+    const tagList = this.parseTagList(article.tagList);
+    const following = await this.checkFollowing(
+      currentUserId,
+      article.author.id,
+    );
 
     const favorited = article.favorites && article.favorites.length > 0;
 
@@ -320,49 +396,33 @@ export class ArticleService {
       }),
     ]);
 
-    const transformedArticles = await Promise.all(
-      articles.map(async (article) => {
-        let tagList: string[] = [];
-        try {
-          tagList = JSON.parse(article.tagList);
-        } catch {
-          tagList = [];
-        }
+    // Optimize
+    const authorIds = articles.map((article) => article.author.id);
+    const followingMap = await this.getFollowingMap(currentUserId, authorIds);
 
-        let following = false;
-        if (currentUserId && currentUserId !== article.author.id) {
-          const followRelation = await this.prisma.follow.findUnique({
-            where: {
-              followerId_followingId: {
-                followerId: currentUserId,
-                followingId: article.author.id,
-              },
-            },
-          });
-          following = !!followRelation;
-        }
+    const transformedArticles = articles.map((article) => {
+      const tagList = this.parseTagList(article.tagList);
+      const following = followingMap.get(article.author.id) || false;
+      const favorited = article.favorites && article.favorites.length > 0;
 
-        const favorited = article.favorites && article.favorites.length > 0;
-
-        return {
-          slug: article.slug,
-          title: article.title,
-          description: article.description,
-          body: article.body,
-          tagList,
-          createdAt: article.createdAt.toISOString(),
-          updatedAt: article.updatedAt.toISOString(),
-          favorited,
-          favoritesCount: article._count.favorites,
-          author: {
-            username: article.author.username,
-            bio: article.author.bio || '',
-            image: article.author.image || '',
-            following,
-          },
-        };
-      }),
-    );
+      return {
+        slug: article.slug,
+        title: article.title,
+        description: article.description,
+        body: article.body,
+        tagList,
+        createdAt: article.createdAt.toISOString(),
+        updatedAt: article.updatedAt.toISOString(),
+        favorited,
+        favoritesCount: article._count.favorites,
+        author: {
+          username: article.author.username,
+          bio: article.author.bio || '',
+          image: article.author.image || '',
+          following,
+        },
+      };
+    });
 
     return {
       articles: transformedArticles,
