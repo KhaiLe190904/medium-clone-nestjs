@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,10 +11,171 @@ import {
 } from '@/features/article/dto/list-articles.dto';
 import { CreateArticleDto } from '@/features/article/dto/create-article.dto';
 import slugify from 'slugify';
+import { UpdateArticleDto } from '@/features/article/dto/update-article.dto';
 
 @Injectable()
 export class ArticleService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async create(createArticleDto: CreateArticleDto, currentUserId: number) {
+    const { title, description, body, tagList } = createArticleDto;
+
+    const slug = slugify(title, { lower: true, strict: true });
+
+    const existingArticle = await this.prisma.article.findUnique({
+      where: { slug },
+    });
+
+    if (existingArticle) {
+      throw new BadRequestException('Article with this title already exists');
+    }
+
+    const newArticle = await this.prisma.article.create({
+      data: {
+        title,
+        description,
+        body,
+        slug,
+        tagList: JSON.stringify(tagList || []),
+        authorId: currentUserId,
+      },
+      include: {
+        author: {
+          select: {
+            username: true,
+            bio: true,
+            image: true,
+            id: true,
+          },
+        },
+        _count: {
+          select: { favorites: true },
+        },
+      },
+    });
+
+    let parsedTagList: string[] = [];
+    try {
+      parsedTagList = JSON.parse(newArticle.tagList);
+    } catch {
+      parsedTagList = [];
+    }
+
+    return {
+      article: {
+        slug: newArticle.slug,
+        title: newArticle.title,
+        description: newArticle.description,
+        body: newArticle.body,
+        tagList: parsedTagList,
+        createdAt: newArticle.createdAt.toISOString(),
+        updatedAt: newArticle.updatedAt.toISOString(),
+        favorited: false,
+        favoritesCount: newArticle._count.favorites,
+        author: {
+          username: newArticle.author.username,
+          bio: newArticle.author.bio || '',
+          image: newArticle.author.image || '',
+          following: false, // User can't follow themselves
+        },
+      },
+    };
+  }
+
+  async update(
+    slug: string,
+    updateArticleDto: UpdateArticleDto,
+    currentUserId: number,
+  ) {
+    const { title, description, body } = updateArticleDto;
+
+    if (!title && !description && !body) {
+      throw new BadRequestException('At least one field must be provided');
+    }
+
+    const article = await this.prisma.article.findUnique({
+      where: { slug },
+      include: {
+        author: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    if (article.author.id !== currentUserId) {
+      throw new ForbiddenException('You are not the author of this article');
+    }
+
+    let newSlug = article.slug;
+    if (title) {
+      newSlug = slugify(title, { lower: true, strict: true });
+      if (newSlug !== article.slug) {
+        const existingArticle = await this.prisma.article.findUnique({
+          where: { slug: newSlug },
+        });
+
+        if (existingArticle) {
+          throw new BadRequestException(
+            'Article with this title already exists',
+          );
+        }
+      }
+    }
+
+    const updatedArticle = await this.prisma.article.update({
+      where: { slug },
+      data: {
+        slug: newSlug,
+        title: title || article.title,
+        description: description || article.description,
+        body: body || article.body,
+      }
+    });
+
+    return {
+      article: {
+        slug: updatedArticle.slug,
+        title: updatedArticle.title,
+        description: updatedArticle.description,
+        body: updatedArticle.body,
+      },
+    };
+  }
+
+  async delete(slug: string, currentUserId: number){
+    const article = await this.prisma.article.findUnique({
+      where: {slug},
+      include: {
+        author: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if(!article){
+      throw new NotFoundException('Article not found');
+    }
+
+    if(article.author.id !== currentUserId){
+      throw new ForbiddenException('You are not the author of this article');
+    }
+    
+    await this.prisma.article.delete({
+      where: { slug },
+    });
+
+    return {
+      message: 'Article deleted successfully',
+    };
+  }
 
   async findOne(slug: string, currentUserId?: number) {
     const article = await this.prisma.article.findUnique({
@@ -81,71 +243,6 @@ export class ArticleService {
           bio: article.author.bio || '',
           image: article.author.image || '',
           following,
-        },
-      },
-    };
-  }
-
-  async create(createArticleDto: CreateArticleDto, currentUserId: number) {
-    const { title, description, body, tagList } = createArticleDto;
-
-    const slug = slugify(title, { lower: true, strict: true });
-
-    const existingArticle = await this.prisma.article.findUnique({
-      where: { slug },
-    });
-
-    if (existingArticle) {
-      throw new BadRequestException('Article with this title already exists');
-    }
-
-    const newArticle = await this.prisma.article.create({
-      data: {
-        title,
-        description,
-        body,
-        slug,
-        tagList: JSON.stringify(tagList || []),
-        authorId: currentUserId,
-      },
-      include: {
-        author: {
-          select: {
-            username: true,
-            bio: true,
-            image: true,
-            id: true,
-          },
-        },
-        _count: {
-          select: { favorites: true },
-        },
-      },
-    });
-
-    let parsedTagList: string[] = [];
-    try {
-      parsedTagList = JSON.parse(newArticle.tagList);
-    } catch {
-      parsedTagList = [];
-    }
-
-    return {
-      article: {
-        slug: newArticle.slug,
-        title: newArticle.title,
-        description: newArticle.description,
-        body: newArticle.body,
-        tagList: parsedTagList,
-        createdAt: newArticle.createdAt.toISOString(),
-        updatedAt: newArticle.updatedAt.toISOString(),
-        favorited: false,
-        favoritesCount: newArticle._count.favorites,
-        author: {
-          username: newArticle.author.username,
-          bio: newArticle.author.bio || '',
-          image: newArticle.author.image || '',
-          following: false, // User can't follow themselves
         },
       },
     };

@@ -8,11 +8,14 @@ import {
   Param,
   Post,
   Body,
+  Put,
+  Delete,
 } from '@nestjs/common';
 import { ListArticlesDto } from '../dto/list-articles.dto';
 import { OptionalJwtAuthGuard } from '@/features/authentication/guard/optional-jwt.guard';
 import { CreateArticleDto } from '@/features/article/dto/create-article.dto';
 import { JwtAuthGuard } from '@/features/authentication/guard/jwt.guard';
+import { UpdateArticleDto } from '@/features/article/dto/update-article.dto';
 
 @Controller('api/articles')
 export class ArticleController {
@@ -40,5 +43,19 @@ export class ArticleController {
   ) {
     const currentUserId = req.user?.id;
     return this.articleService.create(createArticleDto, currentUserId);
+  }
+
+  @Put(':slug')
+  @UseGuards(JwtAuthGuard)
+  async update(@Param('slug') slug: string, @Body('article') updateArticleDto: UpdateArticleDto, @Request() req: any){
+    const currentUserId = req.user.id;
+    return this.articleService.update(slug, updateArticleDto, currentUserId);
+  }
+
+  @Delete(':slug')
+  @UseGuards(JwtAuthGuard)
+  async delete(@Param('slug') slug: string, @Request() req: any){
+    const currentUserId = req.user.id;
+    return this.articleService.delete(slug, currentUserId);
   }
 }
