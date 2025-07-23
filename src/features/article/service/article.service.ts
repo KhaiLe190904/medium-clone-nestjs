@@ -13,6 +13,47 @@ import { CreateArticleDto } from '@/features/article/dto/create-article.dto';
 import slugify from 'slugify';
 import { UpdateArticleDto } from '@/features/article/dto/update-article.dto';
 
+export interface ArticleWithDetails {
+  id: number;
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+  tagList: string;
+  createdAt: Date;
+  updatedAt: Date;
+  authorId: number;
+  favoritesCount: number;
+  author: {
+    id: number;
+    username: string;
+    bio: string | null;
+    image: string | null;
+  };
+  favorites?: { id: number }[];
+  _count: {
+    favorites: number;
+  };
+}
+
+export interface FormattedArticle {
+  slug: string;
+  title: string;
+  description: string;
+  body: string;
+  tagList: string[];
+  createdAt: string;
+  updatedAt: string;
+  favorited: boolean;
+  favoritesCount: number;
+  author: {
+    username: string;
+    bio: string;
+    image: string;
+    following: boolean;
+  };
+}
+
 @Injectable()
 export class ArticleService {
   constructor(private readonly prisma: PrismaService) {}
@@ -72,6 +113,81 @@ export class ArticleService {
     });
 
     return followingMap;
+  }
+
+  private async findArticleBySlug(
+    slug: string,
+    currentUserId?: number,
+  ): Promise<ArticleWithDetails> {
+    const article = await this.prisma.article.findUnique({
+      where: { slug },
+      include: {
+        author: {
+          select: {
+            username: true,
+            bio: true,
+            image: true,
+            id: true,
+          },
+        },
+        favorites: currentUserId
+          ? {
+              where: { userId: currentUserId },
+              select: { id: true },
+            }
+          : false,
+        _count: {
+          select: { favorites: true },
+        },
+      },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    return article;
+  }
+
+  private async formatArticleResponse(
+    article: ArticleWithDetails,
+    currentUserId?: number,
+  ): Promise<FormattedArticle> {
+    const tagList = this.parseTagList(article.tagList);
+    const following = await this.checkFollowing(
+      currentUserId,
+      article.author.id,
+    );
+    const favorited = Boolean(
+      article.favorites && article.favorites.length > 0,
+    );
+
+    return {
+      slug: article.slug,
+      title: article.title,
+      description: article.description,
+      body: article.body,
+      tagList,
+      createdAt: article.createdAt.toISOString(),
+      updatedAt: article.updatedAt.toISOString(),
+      favorited,
+      favoritesCount: article._count.favorites,
+      author: {
+        username: article.author.username,
+        bio: article.author.bio || '',
+        image: article.author.image || '',
+        following,
+      },
+    };
+  }
+
+  private checkArticleOwnership(
+    article: ArticleWithDetails,
+    currentUserId: number,
+  ): void {
+    if (article.author.id !== currentUserId) {
+      throw new ForbiddenException('You are not the author of this article');
+    }
   }
 
   async create(createArticleDto: CreateArticleDto, currentUserId: number) {
@@ -145,24 +261,8 @@ export class ArticleService {
       throw new BadRequestException('At least one field must be provided');
     }
 
-    const article = await this.prisma.article.findUnique({
-      where: { slug },
-      include: {
-        author: {
-          select: {
-            id: true,
-          },
-        },
-      },
-    });
-
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
-
-    if (article.author.id !== currentUserId) {
-      throw new ForbiddenException('You are not the author of this article');
-    }
+    const article = await this.findArticleBySlug(slug);
+    this.checkArticleOwnership(article, currentUserId);
 
     let newSlug = article.slug;
     if (title) {
@@ -209,54 +309,19 @@ export class ArticleService {
       },
     });
 
-    const tagList = this.parseTagList(updatedArticle.tagList);
-    const following = await this.checkFollowing(
+    const formattedArticle = await this.formatArticleResponse(
+      updatedArticle,
       currentUserId,
-      updatedArticle.author.id,
     );
-    const favorited =
-      updatedArticle.favorites && updatedArticle.favorites.length > 0;
 
     return {
-      article: {
-        slug: updatedArticle.slug,
-        title: updatedArticle.title,
-        description: updatedArticle.description,
-        body: updatedArticle.body,
-        tagList,
-        createdAt: updatedArticle.createdAt.toISOString(),
-        updatedAt: updatedArticle.updatedAt.toISOString(),
-        favorited,
-        favoritesCount: updatedArticle._count.favorites,
-        author: {
-          username: updatedArticle.author.username,
-          bio: updatedArticle.author.bio || '',
-          image: updatedArticle.author.image || '',
-          following,
-        },
-      },
+      article: formattedArticle,
     };
   }
 
   async delete(slug: string, currentUserId: number) {
-    const article = await this.prisma.article.findUnique({
-      where: { slug },
-      include: {
-        author: {
-          select: {
-            id: true,
-          },
-        },
-      },
-    });
-
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
-
-    if (article.author.id !== currentUserId) {
-      throw new ForbiddenException('You are not the author of this article');
-    }
+    const article = await this.findArticleBySlug(slug);
+    this.checkArticleOwnership(article, currentUserId);
 
     await this.prisma.article.delete({
       where: { slug },
@@ -268,59 +333,14 @@ export class ArticleService {
   }
 
   async findOne(slug: string, currentUserId?: number) {
-    const article = await this.prisma.article.findUnique({
-      where: { slug },
-      include: {
-        author: {
-          select: {
-            username: true,
-            bio: true,
-            image: true,
-            id: true,
-          },
-        },
-        favorites: currentUserId
-          ? {
-              where: { userId: currentUserId },
-              select: { id: true },
-            }
-          : false,
-        _count: {
-          select: { favorites: true },
-        },
-      },
-    });
-
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
-
-    const tagList = this.parseTagList(article.tagList);
-    const following = await this.checkFollowing(
+    const article = await this.findArticleBySlug(slug, currentUserId);
+    const formattedArticle = await this.formatArticleResponse(
+      article,
       currentUserId,
-      article.author.id,
     );
 
-    const favorited = article.favorites && article.favorites.length > 0;
-
     return {
-      article: {
-        slug: article.slug,
-        title: article.title,
-        description: article.description,
-        body: article.body,
-        tagList,
-        createdAt: article.createdAt.toISOString(),
-        updatedAt: article.updatedAt.toISOString(),
-        favorited,
-        favoritesCount: article._count.favorites,
-        author: {
-          username: article.author.username,
-          bio: article.author.bio || '',
-          image: article.author.image || '',
-          following,
-        },
-      },
+      article: formattedArticle,
     };
   }
 
@@ -403,7 +423,9 @@ export class ArticleService {
     const transformedArticles = articles.map((article) => {
       const tagList = this.parseTagList(article.tagList);
       const following = followingMap.get(article.author.id) || false;
-      const favorited = article.favorites && article.favorites.length > 0;
+      const favorited = Boolean(
+        article.favorites && article.favorites.length > 0,
+      );
 
       return {
         slug: article.slug,
@@ -427,6 +449,85 @@ export class ArticleService {
     return {
       articles: transformedArticles,
       articlesCount: totalCount,
+    };
+  }
+
+  async favorite(slug: string, currentUserId: number) {
+    const article = await this.findArticleBySlug(slug);
+
+    const existingFavorite = await this.prisma.favorite.findUnique({
+      where: {
+        userId_articleId: { userId: currentUserId, articleId: article.id },
+      },
+    });
+
+    if (existingFavorite) {
+      throw new BadRequestException('You have already favorited this article');
+    }
+
+    await this.prisma.favorite.create({
+      data: {
+        userId: currentUserId,
+        articleId: article.id,
+      },
+    });
+
+    await this.prisma.article.update({
+      where: { id: article.id },
+      data: { favoritesCount: { increment: 1 } },
+    });
+
+    // Refresh article data to get updated favorites count
+    const updatedArticle = await this.findArticleBySlug(slug, currentUserId);
+    const formattedArticle = await this.formatArticleResponse(
+      updatedArticle,
+      currentUserId,
+    );
+
+    return {
+      article: {
+        ...formattedArticle,
+        favorited: true,
+        favoritesCount: article._count.favorites + 1,
+      },
+    };
+  }
+
+  async unfavorite(slug: string, currentUserId: number) {
+    const article = await this.findArticleBySlug(slug);
+
+    const existingFavorite = await this.prisma.favorite.findUnique({
+      where: {
+        userId_articleId: { userId: currentUserId, articleId: article.id },
+      },
+    });
+
+    if (!existingFavorite) {
+      throw new BadRequestException('You have not favorited this article');
+    }
+
+    await this.prisma.favorite.delete({
+      where: { id: existingFavorite.id },
+    });
+
+    await this.prisma.article.update({
+      where: { id: article.id },
+      data: { favoritesCount: { decrement: 1 } },
+    });
+
+    // Refresh article data to get updated favorites count
+    const updatedArticle = await this.findArticleBySlug(slug, currentUserId);
+    const formattedArticle = await this.formatArticleResponse(
+      updatedArticle,
+      currentUserId,
+    );
+
+    return {
+      article: {
+        ...formattedArticle,
+        favorited: false,
+        favoritesCount: article._count.favorites - 1,
+      },
     };
   }
 }
