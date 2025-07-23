@@ -32,10 +32,7 @@ export class UserController {
   @UsePipes(new ValidationPipe())
   @Put('user')
   async updateUser(@Request() req, @Body('user') updateUserDto: UpdateUserDto) {
-    const user = await this.userService.updateUser(
-      req.user.id,
-      updateUserDto,
-    );
+    const user = await this.userService.updateUser(req.user.id, updateUserDto);
     return { user };
   }
 
@@ -46,10 +43,7 @@ export class UserController {
     @Request() req,
   ): Promise<ProfileResponse> {
     const currentUserId = req.user?.id;
-    const profile = await this.userService.getProfile(
-      username,
-      currentUserId,
-    );
+    const profile = await this.userService.getProfile(username, currentUserId);
     return { profile };
   }
 
@@ -69,10 +63,7 @@ export class UserController {
     @Param('username') username: string,
     @Request() req,
   ): Promise<ProfileResponse> {
-    const profile = await this.userService.unfollowUser(
-      username,
-      req.user.id,
-    );
+    const profile = await this.userService.unfollowUser(username, req.user.id);
     return { profile };
   }
 }
