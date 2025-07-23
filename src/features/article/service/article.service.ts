@@ -485,11 +485,7 @@ export class ArticleService {
     );
 
     return {
-      article: {
-        ...formattedArticle,
-        favorited: true,
-        favoritesCount: article._count.favorites + 1,
-      },
+      article: formattedArticle,
     };
   }
 
@@ -523,11 +519,7 @@ export class ArticleService {
     );
 
     return {
-      article: {
-        ...formattedArticle,
-        favorited: false,
-        favoritesCount: article._count.favorites - 1,
-      },
+      article: formattedArticle,
     };
   }
 }
