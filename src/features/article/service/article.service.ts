@@ -53,6 +53,13 @@ export interface FormattedArticle {
     following: boolean;
   };
 }
+export interface ArticleResponse {
+  article: FormattedArticle;
+}
+
+export interface DeleteArticleResponse {
+  message: string;
+}
 
 @Injectable()
 export class ArticleService {
@@ -190,7 +197,10 @@ export class ArticleService {
     }
   }
 
-  async create(createArticleDto: CreateArticleDto, currentUserId: number) {
+  async create(
+    createArticleDto: CreateArticleDto,
+    currentUserId: number,
+  ): Promise<ArticleResponse> {
     const { title, description, body, tagList } = createArticleDto;
 
     const slug = slugify(title, { lower: true, strict: true });
@@ -254,7 +264,7 @@ export class ArticleService {
     slug: string,
     updateArticleDto: UpdateArticleDto,
     currentUserId: number,
-  ) {
+  ): Promise<ArticleResponse> {
     const { title, description, body } = updateArticleDto;
 
     if (!title && !description && !body) {
@@ -319,7 +329,10 @@ export class ArticleService {
     };
   }
 
-  async delete(slug: string, currentUserId: number) {
+  async delete(
+    slug: string,
+    currentUserId: number,
+  ): Promise<DeleteArticleResponse> {
     const article = await this.findArticleBySlug(slug);
     this.checkArticleOwnership(article, currentUserId);
 
@@ -332,7 +345,10 @@ export class ArticleService {
     };
   }
 
-  async findOne(slug: string, currentUserId?: number) {
+  async findOne(
+    slug: string,
+    currentUserId?: number,
+  ): Promise<ArticleResponse> {
     const article = await this.findArticleBySlug(slug, currentUserId);
     const formattedArticle = await this.formatArticleResponse(
       article,
@@ -452,7 +468,10 @@ export class ArticleService {
     };
   }
 
-  async favorite(slug: string, currentUserId: number) {
+  async favorite(
+    slug: string,
+    currentUserId: number,
+  ): Promise<ArticleResponse> {
     const article = await this.findArticleBySlug(slug);
 
     const existingFavorite = await this.prisma.favorite.findUnique({
@@ -489,7 +508,10 @@ export class ArticleService {
     };
   }
 
-  async unfavorite(slug: string, currentUserId: number) {
+  async unfavorite(
+    slug: string,
+    currentUserId: number,
+  ): Promise<ArticleResponse> {
     const article = await this.findArticleBySlug(slug);
 
     const existingFavorite = await this.prisma.favorite.findUnique({
