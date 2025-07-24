@@ -72,4 +72,24 @@ export class ArticleController {
     }
     return this.articleService.delete(slug, currentUserId);
   }
+
+  @Post(':slug/favorite')
+  @UseGuards(JwtAuthGuard)
+  async favorite(@Param('slug') slug: string, @Request() req: any) {
+    const currentUserId = req.user?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User authentication required');
+    }
+    return this.articleService.favorite(slug, currentUserId);
+  }
+
+  @Delete(':slug/favorite')
+  @UseGuards(JwtAuthGuard)
+  async unfavorite(@Param('slug') slug: string, @Request() req: any) {
+    const currentUserId = req.user?.id;
+    if (!currentUserId) {
+      throw new UnauthorizedException('User authentication required');
+    }
+    return this.articleService.unfavorite(slug, currentUserId);
+  }
 }
