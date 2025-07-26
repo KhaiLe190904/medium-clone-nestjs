@@ -17,23 +17,35 @@ import { OptionalJwtAuthGuard } from '@/features/authentication/guard/optional-j
 import { CreateArticleDto } from '@/features/article/dto/create-article.dto';
 import { JwtAuthGuard } from '@/features/authentication/guard/jwt.guard';
 import { UpdateArticleDto } from '@/features/article/dto/update-article.dto';
+import { I18nLang, I18nService } from 'nestjs-i18n';
 
 @Controller('api/articles')
 export class ArticleController {
-  constructor(private readonly articleService: ArticleService) {}
+  constructor(
+    private readonly articleService: ArticleService,
+    private readonly i18n: I18nService,
+  ) {}
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
-  async findAll(@Query() queryDto: ListArticlesDto, @Request() req: any) {
+  async findAll(
+    @Query() queryDto: ListArticlesDto,
+    @Request() req: any,
+    @I18nLang() lang: string,
+  ) {
     const currentUserId = req.user?.id;
-    return this.articleService.findAll(queryDto, currentUserId);
+    return this.articleService.findAll(queryDto, currentUserId, lang);
   }
 
   @Get(':slug')
   @UseGuards(OptionalJwtAuthGuard)
-  async findOne(@Param('slug') slug: string, @Request() req: any) {
+  async findOne(
+    @Param('slug') slug: string,
+    @Request() req: any,
+    @I18nLang() lang: string,
+  ) {
     const currentUserId = req.user?.id;
-    return this.articleService.findOne(slug, currentUserId);
+    return this.articleService.findOne(slug, currentUserId, lang);
   }
 
   @Post()
@@ -41,12 +53,17 @@ export class ArticleController {
   async create(
     @Body('article') createArticleDto: CreateArticleDto,
     @Request() req: any,
+    @I18nLang() lang: string,
   ) {
     const currentUserId = req.user?.id;
     if (!currentUserId) {
-      throw new UnauthorizedException('User authentication required');
+      const message = await this.i18n.translate(
+        'auth.authentication_required',
+        { lang },
+      );
+      throw new UnauthorizedException(message);
     }
-    return this.articleService.create(createArticleDto, currentUserId);
+    return this.articleService.create(createArticleDto, currentUserId, lang);
   }
 
   @Put(':slug')
@@ -55,41 +72,75 @@ export class ArticleController {
     @Param('slug') slug: string,
     @Body('article') updateArticleDto: UpdateArticleDto,
     @Request() req: any,
+    @I18nLang() lang: string,
   ) {
     const currentUserId = req.user?.id;
     if (!currentUserId) {
-      throw new UnauthorizedException('User authentication required');
+      const message = await this.i18n.translate(
+        'auth.authentication_required',
+        { lang },
+      );
+      throw new UnauthorizedException(message);
     }
-    return this.articleService.update(slug, updateArticleDto, currentUserId);
+    return this.articleService.update(
+      slug,
+      updateArticleDto,
+      currentUserId,
+      lang,
+    );
   }
 
   @Delete(':slug')
   @UseGuards(JwtAuthGuard)
-  async delete(@Param('slug') slug: string, @Request() req: any) {
+  async delete(
+    @Param('slug') slug: string,
+    @Request() req: any,
+    @I18nLang() lang: string,
+  ) {
     const currentUserId = req.user?.id;
     if (!currentUserId) {
-      throw new UnauthorizedException('User authentication required');
+      const message = await this.i18n.translate(
+        'auth.authentication_required',
+        { lang },
+      );
+      throw new UnauthorizedException(message);
     }
-    return this.articleService.delete(slug, currentUserId);
+    return this.articleService.delete(slug, currentUserId, lang);
   }
 
   @Post(':slug/favorite')
   @UseGuards(JwtAuthGuard)
-  async favorite(@Param('slug') slug: string, @Request() req: any) {
+  async favorite(
+    @Param('slug') slug: string,
+    @Request() req: any,
+    @I18nLang() lang: string,
+  ) {
     const currentUserId = req.user?.id;
     if (!currentUserId) {
-      throw new UnauthorizedException('User authentication required');
+      const message = await this.i18n.translate(
+        'auth.authentication_required',
+        { lang },
+      );
+      throw new UnauthorizedException(message);
     }
-    return this.articleService.favorite(slug, currentUserId);
+    return this.articleService.favorite(slug, currentUserId, lang);
   }
 
   @Delete(':slug/favorite')
   @UseGuards(JwtAuthGuard)
-  async unfavorite(@Param('slug') slug: string, @Request() req: any) {
+  async unfavorite(
+    @Param('slug') slug: string,
+    @Request() req: any,
+    @I18nLang() lang: string,
+  ) {
     const currentUserId = req.user?.id;
     if (!currentUserId) {
-      throw new UnauthorizedException('User authentication required');
+      const message = await this.i18n.translate(
+        'auth.authentication_required',
+        { lang },
+      );
+      throw new UnauthorizedException(message);
     }
-    return this.articleService.unfavorite(slug, currentUserId);
+    return this.articleService.unfavorite(slug, currentUserId, lang);
   }
 }

@@ -1,0 +1,6 @@
+{
+  "email_invalid": "有効なメールアドレスを入力してください",
+  "password_too_short": "パスワードは6文字以上である必要があります",
+  "password_confirmation_required": "パスワードを更新する際は確認パスワードが必要です",
+  "password_mismatch": "パスワードと確認パスワードが一致しません"
+}

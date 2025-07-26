@@ -1,0 +1,6 @@
+{
+  "email_invalid": "Please provide a valid email address",
+  "password_too_short": "Password must be at least 6 characters long",
+  "password_confirmation_required": "Password confirmation is required when updating password",
+  "password_mismatch": "Password and password confirmation do not match"
+}

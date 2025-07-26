@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { I18nService } from 'nestjs-i18n';
 
 export interface CommentResponse {
   comment: {
@@ -24,9 +25,12 @@ export interface CommentResponse {
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly i18n: I18nService,
+  ) {}
 
-  private async validateArticleSlug(slug: string) {
+  private async validateArticleSlug(slug: string, lang?: string) {
     const article = await this.prisma.article.findUnique({
       where: { slug },
       include: {
@@ -35,7 +39,10 @@ export class CommentService {
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      const message = await this.i18n.translate('article.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
     return article;
   }
@@ -44,8 +51,9 @@ export class CommentService {
     slug: string,
     createCommentDto: CreateCommentDto,
     currentUserId: number,
+    lang?: string,
   ): Promise<CommentResponse> {
-    const article = await this.validateArticleSlug(slug);
+    const article = await this.validateArticleSlug(slug, lang);
 
     const comment = await this.prisma.comment.create({
       data: {
@@ -99,8 +107,9 @@ export class CommentService {
   async getCommentsFromArticle(
     slug: string,
     currentUserId: number | null,
+    lang?: string,
   ): Promise<CommentResponse[]> {
-    const article = await this.validateArticleSlug(slug);
+    const article = await this.validateArticleSlug(slug, lang);
 
     const comments = await this.prisma.comment.findMany({
       where: { articleId: article.id },
@@ -168,27 +177,38 @@ export class CommentService {
     slug: string,
     id: string,
     currentUserId: number,
+    lang?: string,
   ): Promise<{ message: string }> {
-    const article = await this.validateArticleSlug(slug);
+    const article = await this.validateArticleSlug(slug, lang);
 
     const comment = await this.prisma.comment.findUnique({
       where: { id: parseInt(id) },
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      const message = await this.i18n.translate('comment.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
 
     if (comment.userId !== currentUserId) {
-      throw new ForbiddenException(
-        'You are not allowed to delete this comment',
+      const message = await this.i18n.translate(
+        'comment.delete_forbidden',
+        { lang },
       );
+      throw new ForbiddenException(message);
     }
 
     await this.prisma.comment.delete({ where: { id: parseInt(id) } });
 
+    const successMessage = await this.i18n.translate(
+      'comment.deleted',
+      { lang },
+    );
+
     return {
-      message: 'Comment deleted successfully',
+      message: successMessage,
     };
   }
 }
