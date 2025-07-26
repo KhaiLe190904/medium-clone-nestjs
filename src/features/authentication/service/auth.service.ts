@@ -9,15 +9,17 @@ import { UserDto } from '@/features/authentication/dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { UserLoginDto } from '@/features/authentication/dto/userLogin.dto';
 import { JwtService } from '@nestjs/jwt';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly i18n: I18nService,
   ) {}
 
-  async register(createUserDto: UserDto) {
+  async register(createUserDto: UserDto, lang?: string) {
     const user = await this.prisma.user.findUnique({
       where: {
         email: createUserDto.email,
@@ -25,7 +27,11 @@ export class AuthService {
     });
 
     if (user) {
-      throw new BadRequestException('User already exists');
+      const message = await this.i18n.translate(
+        'auth.user_already_exists',
+        { lang },
+      );
+      throw new BadRequestException(message);
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
@@ -40,7 +46,7 @@ export class AuthService {
     return newUser;
   }
 
-  async validateUser(loginUserDto: UserLoginDto) {
+  async validateUser(loginUserDto: UserLoginDto, lang?: string) {
     const user = await this.prisma.user.findUnique({
       where: {
         email: loginUserDto.email,
@@ -48,7 +54,11 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      const message = await this.i18n.translate(
+        'auth.invalid_credentials',
+        { lang },
+      );
+      throw new UnauthorizedException(message);
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -61,6 +71,11 @@ export class AuthService {
       user.token = this.jwtService.sign(payload);
       return user;
     }
-    throw new UnauthorizedException('Invalid credentials');
+
+    const message = await this.i18n.translate(
+      'auth.invalid_credentials',
+      { lang },
+    );
+    throw new UnauthorizedException(message);
   }
 }

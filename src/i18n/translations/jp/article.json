@@ -1,0 +1,9 @@
+{
+  "not_found": "記事が見つかりません",
+  "not_author": "この記事の作者ではありません",
+  "title_already_exists": "このタイトルの記事は既に存在しています",
+  "at_least_one_field": "少なくとも一つのフィールドを提供する必要があります",
+  "already_favorited": "既にこの記事をお気に入りに追加しています",
+  "not_favorited": "この記事をお気に入りに追加していません",
+  "deleted": "記事が正常に削除されました"
+}

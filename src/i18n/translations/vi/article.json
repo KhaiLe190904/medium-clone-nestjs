@@ -1,0 +1,9 @@
+{
+  "not_found": "Không tìm thấy bài viết",
+  "not_author": "Bạn không phải là tác giả của bài viết này",
+  "title_already_exists": "Bài viết với tiêu đề này đã tồn tại",
+  "at_least_one_field": "Ít nhất một trường phải được cung cấp",
+  "already_favorited": "Bạn đã yêu thích bài viết này",
+  "not_favorited": "Bạn chưa yêu thích bài viết này",
+  "deleted": "Xóa bài viết thành công"
+}

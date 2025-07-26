@@ -12,6 +12,7 @@ import {
 import { CreateArticleDto } from '@/features/article/dto/create-article.dto';
 import slugify from 'slugify';
 import { UpdateArticleDto } from '@/features/article/dto/update-article.dto';
+import { I18nService } from 'nestjs-i18n';
 
 export interface ArticleWithDetails {
   id: number;
@@ -63,7 +64,10 @@ export interface DeleteArticleResponse {
 
 @Injectable()
 export class ArticleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly i18n: I18nService,
+  ) {}
 
   private parseTagList(tagListJson: string): string[] {
     try {
@@ -125,6 +129,7 @@ export class ArticleService {
   private async findArticleBySlug(
     slug: string,
     currentUserId?: number,
+    lang?: string,
   ): Promise<ArticleWithDetails> {
     const article = await this.prisma.article.findUnique({
       where: { slug },
@@ -150,7 +155,10 @@ export class ArticleService {
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      const message = await this.i18n.translate('article.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
 
     return article;
@@ -188,18 +196,23 @@ export class ArticleService {
     };
   }
 
-  private checkArticleOwnership(
+  private async checkArticleOwnership(
     article: ArticleWithDetails,
     currentUserId: number,
-  ): void {
+    lang?: string,
+  ): Promise<void> {
     if (article.author.id !== currentUserId) {
-      throw new ForbiddenException('You are not the author of this article');
+      const message = await this.i18n.translate('article.not_author', {
+        lang,
+      });
+      throw new ForbiddenException(message);
     }
   }
 
   async create(
     createArticleDto: CreateArticleDto,
     currentUserId: number,
+    lang?: string,
   ): Promise<ArticleResponse> {
     const { title, description, body, tagList } = createArticleDto;
 
@@ -210,7 +223,11 @@ export class ArticleService {
     });
 
     if (existingArticle) {
-      throw new BadRequestException('Article with this title already exists');
+      const message = await this.i18n.translate(
+        'article.title_already_exists',
+        { lang },
+      );
+      throw new BadRequestException(message);
     }
 
     const newArticle = await this.prisma.article.create({
@@ -264,15 +281,20 @@ export class ArticleService {
     slug: string,
     updateArticleDto: UpdateArticleDto,
     currentUserId: number,
+    lang?: string,
   ): Promise<ArticleResponse> {
     const { title, description, body } = updateArticleDto;
 
     if (!title && !description && !body) {
-      throw new BadRequestException('At least one field must be provided');
+      const message = await this.i18n.translate(
+        'article.at_least_one_field',
+        { lang },
+      );
+      throw new BadRequestException(message);
     }
 
-    const article = await this.findArticleBySlug(slug);
-    this.checkArticleOwnership(article, currentUserId);
+    const article = await this.findArticleBySlug(slug, undefined, lang);
+    await this.checkArticleOwnership(article, currentUserId, lang);
 
     let newSlug = article.slug;
     if (title) {
@@ -283,9 +305,11 @@ export class ArticleService {
         });
 
         if (existingArticle) {
-          throw new BadRequestException(
-            'Article with this title already exists',
+          const message = await this.i18n.translate(
+            'article.title_already_exists',
+            { lang },
           );
+          throw new BadRequestException(message);
         }
       }
     }
@@ -332,24 +356,30 @@ export class ArticleService {
   async delete(
     slug: string,
     currentUserId: number,
+    lang?: string,
   ): Promise<DeleteArticleResponse> {
-    const article = await this.findArticleBySlug(slug);
-    this.checkArticleOwnership(article, currentUserId);
+    const article = await this.findArticleBySlug(slug, undefined, lang);
+    await this.checkArticleOwnership(article, currentUserId, lang);
 
     await this.prisma.article.delete({
       where: { slug },
     });
 
+    const message = await this.i18n.translate('article.deleted', {
+      lang,
+    });
+
     return {
-      message: 'Article deleted successfully',
+      message,
     };
   }
 
   async findOne(
     slug: string,
     currentUserId?: number,
+    lang?: string,
   ): Promise<ArticleResponse> {
-    const article = await this.findArticleBySlug(slug, currentUserId);
+    const article = await this.findArticleBySlug(slug, currentUserId, lang);
     const formattedArticle = await this.formatArticleResponse(
       article,
       currentUserId,
@@ -363,6 +393,7 @@ export class ArticleService {
   async findAll(
     queryDto: ListArticlesDto,
     currentUserId?: number,
+    lang?: string,
   ): Promise<ListArticlesResponse> {
     const { tag, author, favorited } = queryDto;
     const limit = queryDto.limit ? Number(queryDto.limit) : 20;
@@ -471,8 +502,9 @@ export class ArticleService {
   async favorite(
     slug: string,
     currentUserId: number,
+    lang?: string,
   ): Promise<ArticleResponse> {
-    const article = await this.findArticleBySlug(slug);
+    const article = await this.findArticleBySlug(slug, undefined, lang);
 
     const existingFavorite = await this.prisma.favorite.findUnique({
       where: {
@@ -481,7 +513,11 @@ export class ArticleService {
     });
 
     if (existingFavorite) {
-      throw new BadRequestException('You have already favorited this article');
+      const message = await this.i18n.translate(
+        'article.already_favorited',
+        { lang },
+      );
+      throw new BadRequestException(message);
     }
 
     await this.prisma.favorite.create({
@@ -497,7 +533,11 @@ export class ArticleService {
     });
 
     // Refresh article data to get updated favorites count
-    const updatedArticle = await this.findArticleBySlug(slug, currentUserId);
+    const updatedArticle = await this.findArticleBySlug(
+      slug,
+      currentUserId,
+      lang,
+    );
     const formattedArticle = await this.formatArticleResponse(
       updatedArticle,
       currentUserId,
@@ -511,8 +551,9 @@ export class ArticleService {
   async unfavorite(
     slug: string,
     currentUserId: number,
+    lang?: string,
   ): Promise<ArticleResponse> {
-    const article = await this.findArticleBySlug(slug);
+    const article = await this.findArticleBySlug(slug, undefined, lang);
 
     const existingFavorite = await this.prisma.favorite.findUnique({
       where: {
@@ -521,7 +562,11 @@ export class ArticleService {
     });
 
     if (!existingFavorite) {
-      throw new BadRequestException('You have not favorited this article');
+      const message = await this.i18n.translate(
+        'article.not_favorited',
+        { lang },
+      );
+      throw new BadRequestException(message);
     }
 
     await this.prisma.favorite.delete({
@@ -534,7 +579,11 @@ export class ArticleService {
     });
 
     // Refresh article data to get updated favorites count
-    const updatedArticle = await this.findArticleBySlug(slug, currentUserId);
+    const updatedArticle = await this.findArticleBySlug(
+      slug,
+      currentUserId,
+      lang,
+    );
     const formattedArticle = await this.formatArticleResponse(
       updatedArticle,
       currentUserId,

@@ -1,0 +1,9 @@
+{
+  "not_found": "Article not found",
+  "not_author": "You are not the author of this article",
+  "title_already_exists": "Article with this title already exists",
+  "at_least_one_field": "At least one field must be provided",
+  "already_favorited": "You have already favorited this article",
+  "not_favorited": "You have not favorited this article",
+  "deleted": "Article deleted successfully"
+}
