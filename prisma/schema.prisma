@@ -22,6 +22,7 @@ model user {
   following Follow[]   @relation("UserFollowing")
   articles  Article[]
   favorites Favorite[]
+  comments  Comment[]
 }
 
 model Follow {
@@ -52,6 +53,7 @@ model Article {
   authorId  Int
   author    user       @relation(fields: [authorId], references: [id])
   favorites Favorite[]
+  comments  Comment[]
 }
 
 model Favorite {
@@ -65,4 +67,18 @@ model Favorite {
 
   @@unique([userId, articleId])
   @@map("favorites")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  articleId Int
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
 }

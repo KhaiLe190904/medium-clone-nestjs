@@ -1,0 +1,7 @@
+{
+  "not_found": "User not found",
+  "email_already_in_use": "Email already in use",
+  "username_already_taken": "Username already taken",
+  "cannot_follow_yourself": "Cannot follow yourself",
+  "already_following": "You are already following this user"
+}

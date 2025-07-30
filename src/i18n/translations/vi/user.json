@@ -1,0 +1,7 @@
+{
+  "not_found": "Không tìm thấy người dùng",
+  "email_already_in_use": "Email đã được sử dụng",
+  "username_already_taken": "Tên người dùng đã được sử dụng",
+  "cannot_follow_yourself": "Không thể theo dõi chính mình",
+  "already_following": "Bạn đã theo dõi người dùng này"
+}

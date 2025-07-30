@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -7,12 +7,16 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { ProfileDto } from '@/features/user/dto/profile.dto';
 import { UpdateUserDto } from '@/features/user/dto/updateUser.dto';
 import * as bcrypt from 'bcrypt';
+import { I18nService } from 'nestjs-i18n';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly i18n: I18nService,
+  ) {}
 
-  async getCurrentUser(userId: number) {
+  async getCurrentUser(userId: number, lang?: string) {
     const user = await this.prisma.user.findUnique({
       where: {
         id: userId,
@@ -29,13 +33,20 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      const message = await this.i18n.translate('user.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
 
     return user;
   }
 
-  async updateUser(userId: number, updateUserDto: UpdateUserDto) {
+  async updateUser(
+    userId: number,
+    updateUserDto: UpdateUserDto,
+    lang?: string,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: {
         id: userId,
@@ -43,7 +54,10 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      const message = await this.i18n.translate('user.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
 
     if (updateUserDto.email && updateUserDto.email !== user.email) {
@@ -54,7 +68,11 @@ export class UserService {
       });
 
       if (existingUser) {
-        throw new BadRequestException('Email already in use');
+        const message = await this.i18n.translate(
+          'user.email_already_in_use',
+          { lang },
+        );
+        throw new BadRequestException(message);
       }
     }
 
@@ -66,21 +84,29 @@ export class UserService {
       });
 
       if (existingUser) {
-        throw new BadRequestException('Username already taken');
+        const message = await this.i18n.translate(
+          'user.username_already_taken',
+          { lang },
+        );
+        throw new BadRequestException(message);
       }
     }
 
     if (updateUserDto.password && !updateUserDto.confirmPassword) {
-      throw new BadRequestException(
-        'Password confirmation is required when updating password',
+      const message = await this.i18n.translate(
+        'validation.password_confirmation_required',
+        { lang },
       );
+      throw new BadRequestException(message);
     }
 
     if (updateUserDto.password && updateUserDto.confirmPassword) {
       if (updateUserDto.password !== updateUserDto.confirmPassword) {
-        throw new BadRequestException(
-          'Password and password confirmation do not match',
+        const message = await this.i18n.translate(
+          'validation.password_mismatch',
+          { lang },
         );
+        throw new BadRequestException(message);
       }
     }
 
@@ -113,6 +139,7 @@ export class UserService {
   async getProfile(
     username: string,
     currentUserId?: number,
+    lang?: string,
   ): Promise<ProfileDto> {
     const user = await this.prisma.user.findUnique({
       where: { username },
@@ -125,7 +152,10 @@ export class UserService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      const message = await this.i18n.translate('user.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
 
     let following = false;
@@ -152,6 +182,7 @@ export class UserService {
   async followUser(
     username: string,
     currentUserId: number,
+    lang?: string,
   ): Promise<ProfileDto> {
     const userToFollow = await this.prisma.user.findUnique({
       where: { username },
@@ -159,11 +190,18 @@ export class UserService {
     });
 
     if (!userToFollow) {
-      throw new NotFoundException('User not found');
+      const message = await this.i18n.translate('user.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
 
     if (userToFollow.id === currentUserId) {
-      throw new BadRequestException('Cannot follow yourself');
+      const message = await this.i18n.translate(
+        'user.cannot_follow_yourself',
+        { lang },
+      );
+      throw new BadRequestException(message);
     }
 
     const existingFollow = await this.prisma.follow.findUnique({
@@ -176,7 +214,11 @@ export class UserService {
     });
 
     if (existingFollow) {
-      throw new BadRequestException('You are already following this user');
+      const message = await this.i18n.translate(
+        'user.already_following',
+        { lang },
+      );
+      throw new BadRequestException(message);
     }
 
     await this.prisma.follow.create({
@@ -197,6 +239,7 @@ export class UserService {
   async unfollowUser(
     username: string,
     currentUserId: number,
+    lang?: string,
   ): Promise<ProfileDto> {
     const userToUnfollow = await this.prisma.user.findUnique({
       where: { username },
@@ -204,7 +247,10 @@ export class UserService {
     });
 
     if (!userToUnfollow) {
-      throw new NotFoundException('User not found');
+      const message = await this.i18n.translate('user.not_found', {
+        lang,
+      });
+      throw new NotFoundException(message);
     }
 
     await this.prisma.follow.deleteMany({

@@ -1,0 +1,7 @@
+{
+  "not_found": "ユーザーが見つかりません",
+  "email_already_in_use": "メールアドレスは既に使用されています",
+  "username_already_taken": "ユーザー名は既に使用されています",
+  "cannot_follow_yourself": "自分自身をフォローすることはできません",
+  "already_following": "既にこのユーザーをフォローしています"
+}
