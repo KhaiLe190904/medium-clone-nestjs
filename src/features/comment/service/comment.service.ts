@@ -94,16 +94,6 @@ export class CommentService {
     };
   }
 
-  private async getFollowingMap(
-    currentUserId: number,
-    targetUserIds: number[],
-  ): Promise<Map<number, boolean>> {
-    const followRelations = await this.prisma.follow.findMany({
-      where: { followerId: currentUserId, followingId: { in: targetUserIds } },
-    });
-    return new Map(followRelations.map((follow) => [follow.followingId, true]));
-  }
-
   async getCommentsFromArticle(
     slug: string,
     currentUserId: number | null,
@@ -124,12 +114,11 @@ export class CommentService {
             username: true,
             bio: true,
             image: true,
-          },
+          },  
         },
       },
     });
 
-    // If user is not logged in, all following should be false
     if (!currentUserId) {
       return comments.map((comment) => ({
         comment: {
@@ -210,5 +199,15 @@ export class CommentService {
     return {
       message: successMessage,
     };
+  }
+
+  private async getFollowingMap(
+    currentUserId: number,
+    targetUserIds: number[],
+  ): Promise<Map<number, boolean>> {
+    const followRelations = await this.prisma.follow.findMany({
+      where: { followerId: currentUserId, followingId: { in: targetUserIds } },
+    });
+    return new Map(followRelations.map((follow) => [follow.followingId, true]));
   }
 }

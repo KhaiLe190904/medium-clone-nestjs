@@ -48,7 +48,7 @@ export class CommentController {
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
-  async getCommentsFromArticle(
+  async getByArticle(
     @Param('slug') slug: string,
     @Request() req: any,
     @I18nLang() lang: string,
@@ -63,7 +63,7 @@ export class CommentController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  async deleteComment(
+  async delete(
     @Param('slug') slug: string,
     @Param('id') id: string,
     @Request() req: any,
