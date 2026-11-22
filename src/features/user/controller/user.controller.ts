@@ -17,7 +17,6 @@ import { OptionalJwtAuthGuard } from '@/features/authentication/guard/optional-j
 import { ProfileResponse } from '@/features/user/dto/profile.dto';
 import { UpdateUserDto } from '@/features/user/dto/updateUser.dto';
 import { I18nLang, I18nService } from 'nestjs-i18n';
-
 @Controller('api')
 export class UserController {
   constructor(
